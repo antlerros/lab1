@@ -32,7 +32,6 @@ function FriendlyChat() {
   this.signInButton = document.getElementById('sign-in');
   this.signOutButton = document.getElementById('sign-out');
   this.signInSnackbar = document.getElementById('must-signin-snackbar');
-
   this.messageReceiver = document.getElementById('receiver');
 
   // Saves message on form submit.
@@ -54,6 +53,7 @@ function FriendlyChat() {
   this.mediaCapture.addEventListener('change', this.saveImageMessage.bind(this));
 
   this.initFirebase();
+  this.displayUserOption();
 }
 
 // Sets up shortcuts to Firebase features and initiate firebase auth.
@@ -74,12 +74,14 @@ FriendlyChat.prototype.loadMessages = function() {
 	var setMessage = function(data) {
 		var val = data.val();
 		// only display messages to or from the currentUser
-		if(val.name == this.auth.currentUser.displayName && val.receiver == this.messageReceiver.value){
-			this.displayMessage(data.key, val.name, val.receiver, val.text, val.photourl, val.imageUrl);
-		}else if (val.receiver == this.auth.currentUser.displayName && val.name == this.messageReceiver.value){
-			this.displayMessage(data.key, val.name, val.receiver, val.text, val.photourl, val.imageUrl);
-		}
-	}.bind(this);
+    var currentUser = this.auth.currentUser;
+    var receiver = this.messageReceiver;
+    console.log(currentUser.displayName + ' ' + receiver.value);
+		if((val.name == currentUser.displayName && val.receiver == receiver.value) ||
+       (val.name == receiver.value && val.receiver == currentUser.displayName)) {
+			  this.displayMessage(data.key, val.name, val.receiver, val.text, val.photourl, val.imageUrl);
+    }
+  }.bind(this);
 	this.messagesRef.limitToLast(12).on('child_added', setMessage);
 	this.messagesRef.limitToLast(12).on('child_changed', setMessage);
 };
@@ -183,6 +185,7 @@ FriendlyChat.prototype.signIn = function() {
   // Sign in Firebase with credential from the Google user.
 	var provider = new firebase.auth.GoogleAuthProvider();
 	this.auth.signInWithPopup(provider);
+  
 };
 
 // Signs-out of Friendly Chat.
@@ -191,14 +194,26 @@ FriendlyChat.prototype.signOut = function() {
 	this.auth.signOut();
 };
 
-FriendlyChat.prototype.updateUsers = function() {
-	this.usersRef = this.database.ref('/users');
-	this.usersRef.off();
-	if(!this.userRef.orderByChild().equalTo(this.auth.currentUser)){
-		this.userRef.push({name: this.auth.currentUser.displayName});
-	}
-	this.messageReceiver.options.length = 0;
-	this.loadSelect();
+FriendlyChat.prototype.updateUsers = function(userName) {
+	var usersRef = this.database.ref('users');
+  
+  // console.log(usersRef);
+
+	usersRef.off();
+
+  var find = false;
+  var option = document.createElement('option');
+  // usersRef.child(firebase.auth().currentUser.displayName);
+  usersRef.orderByChild("name").equalTo(userName).on("child_added", function() {
+    find = true;
+  })
+
+  if(!usersRef && !find) {
+    // console.log('append name');
+    usersRef.push({name: userName});
+  } 
+  // this.messageReceiver.options.length = 0;
+	// this.loadSelect();
 };
 
 FriendlyChat.prototype.loadSelect = function(){
@@ -206,7 +221,6 @@ FriendlyChat.prototype.loadSelect = function(){
 		var name = user.val().name;
 		var new_option = new Option(name);
 		this.messageReceiver.add(new_option);
-
 	}.bind(this);
 	this.userRef.limitToLast(10).on('child_added', add_select);
 	this.userRef.limitToLast(10).on('child_changed', add_select);
@@ -231,14 +245,15 @@ FriendlyChat.prototype.onAuthStateChanged = function(user) {
     // Hide sign-in button.
     this.signInButton.setAttribute('hidden', 'true');
 
-	//
-//	this.updateUsers();
+    this.updateUsers(userName);
+  this.displayUserOption();
 
-    // We load currently existing chant messages.
+    // We load currently existing chat messages.
     this.loadMessages();
 
     // We save the Firebase Messaging Device token and enable notifications.
     this.saveMessagingDeviceToken();
+    
   } else { // User is signed out!
     // Hide user's profile and sign-out button.
     this.userName.setAttribute('hidden', 'true');
@@ -248,12 +263,15 @@ FriendlyChat.prototype.onAuthStateChanged = function(user) {
     // Show sign-in button.
     this.signInButton.removeAttribute('hidden');
   }
+
+
 };
 
 // Returns true if user is signed-in. Otherwise false and displays a message.
 FriendlyChat.prototype.checkSignedInWithMessage = function() {
   /* TODO(DEVELOPER): Check if user is signed-in Firebase. */
   if(this.auth.currentUser){
+
 	  return true;
   }
   // Display a message to the user using a Toast.
@@ -307,8 +325,27 @@ FriendlyChat.MESSAGE_TEMPLATE =
       '<div class="name"></div>' +
     '</div>';
 
+
 // A loading image URL.
 FriendlyChat.LOADING_IMAGE_URL = 'https://www.google.com/images/spin-32.gif';
+
+FriendlyChat.prototype.displayUserOption = function() {
+  var usersRef = this.database.ref('users');
+  // console.log(usersRef);
+  // console.log(option);
+  var setOption = function(data) {
+		var val = data.val();
+    var option = document.createElement('option');
+    option.value = val.name;
+    option.innerHTML = val.name;
+		// only display messages to or from the currentUser
+    this.messageReceiver.append(option);
+    // console.log(this.messageReceiver);
+  }.bind(this)
+  
+  usersRef.on("child_added", setOption);
+  usersRef.on('child_changed', setOption);
+}
 
 // Displays a Message in the UI.
 FriendlyChat.prototype.displayMessage = function(key, name, receiver, text, picUrl, imageUri) {

@@ -53,7 +53,7 @@ function FriendlyChat() {
   this.mediaCapture.addEventListener('change', this.saveImageMessage.bind(this));
 
   this.initFirebase();
-  this.displayUserOption();
+  // this.displayUserOption();
 }
 
 // Sets up shortcuts to Firebase features and initiate firebase auth.
@@ -196,25 +196,24 @@ FriendlyChat.prototype.signOut = function() {
 
 FriendlyChat.prototype.updateUsers = function(userName) {
 	var usersRef = this.database.ref('users');
-  
-  // console.log(usersRef);
-
 	usersRef.off();
-
-  var find = false;
-  var option = document.createElement('option');
-  // usersRef.child(firebase.auth().currentUser.displayName);
-  usersRef.orderByChild("name").equalTo(userName).on("child_added", function() {
-    find = true;
-  })
-
-  if(usersRef && !find) {
-    // console.log('append name');
-    usersRef.push({name: userName});
+  console.log(usersRef);
+  this.find = false;
+  if(usersRef){
+    console.log('checking database');
+    var check = function() { 
+      this.find = true; 
+    }.bind(this);
+    usersRef.orderByChild("name").equalTo(userName).on("child_added", check);
   } 
-  // this.messageReceiver.options.length = 0;
-	// this.loadSelect();
+  console.log(this.find);
+  if(!this.find) {
+      usersRef.appen({name: userName});
+  }
+
 };
+
+
 
 FriendlyChat.prototype.loadSelect = function(){
 	var add_select = function(user){
@@ -246,7 +245,7 @@ FriendlyChat.prototype.onAuthStateChanged = function(user) {
     this.signInButton.setAttribute('hidden', 'true');
 
     this.updateUsers(userName);
-  this.displayUserOption();
+    this.displayUserOption();
 
     // We load currently existing chat messages.
     this.loadMessages();
@@ -271,7 +270,6 @@ FriendlyChat.prototype.onAuthStateChanged = function(user) {
 FriendlyChat.prototype.checkSignedInWithMessage = function() {
   /* TODO(DEVELOPER): Check if user is signed-in Firebase. */
   if(this.auth.currentUser){
-
 	  return true;
   }
   // Display a message to the user using a Toast.
@@ -343,8 +341,9 @@ FriendlyChat.prototype.displayUserOption = function() {
     // console.log(this.messageReceiver);
   }.bind(this)
   
+  this.messageReceiver.options.length = 0;
   usersRef.on("child_added", setOption);
-  usersRef.on('child_changed', setOption);
+  // usersRef.on('child_changed', setOption);
 }
 
 // Displays a Message in the UI.

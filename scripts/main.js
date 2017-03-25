@@ -208,7 +208,7 @@ FriendlyChat.prototype.updateUsers = function(userName) {
     find = true;
   })
 
-  if(!usersRef && !find) {
+  if(usersRef && !find) {
     // console.log('append name');
     usersRef.push({name: userName});
   } 

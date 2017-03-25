@@ -206,11 +206,6 @@ FriendlyChat.prototype.updateUsers = function(userName) {
     }.bind(this);
     usersRef.orderByChild("name").equalTo(userName).on("child_added", check);
   } 
-  console.log(this.find);
-  if(!this.find) {
-      usersRef.appen({name: userName});
-  }
-
 };
 
 
